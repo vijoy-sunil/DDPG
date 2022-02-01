@@ -1,43 +1,44 @@
 import numpy as np
-from collections import deque
+import tensorflow as tf
 
 class ReplayBuffer:
-    def __init__(self, capacity, batch_size):
+    def __init__(self, capacity, batch_size, state_space, action_space):
         self.buffer_capacity = capacity
+        self.buffer_counter = 0
         # sampling batch size
         self.batch_size = batch_size
         # buffer must store (state, action, reward, next_state)
-        self.buffer = deque(maxlen=self.buffer_capacity)
+        self.state_buffer = np.zeros((self.buffer_capacity, state_space))
+        self.action_buffer = np.zeros((self.buffer_capacity, action_space))
+        self.reward_buffer = np.zeros((self.buffer_capacity, 1))
+        self.next_state_buffer = np.zeros((self.buffer_capacity, state_space))
 
     def get_size(self):
-        return len(self.buffer)
+        return self.buffer_counter
 
     # left most element gets popped when size exceeds maxlen
     def add_experience(self, experience):
-        self.buffer.append(experience)
+        state, action, reward, next_state = experience
+        # Set index to zero if buffer_capacity is exceeded, replacing
+        # old records
+        index = self.buffer_counter % self.buffer_capacity
+        self.state_buffer[index] = state
+        self.action_buffer[index] = action
+        self.reward_buffer[index] = reward
+        self.next_state_buffer[index] = next_state
+        # increment counter
+        self.buffer_counter += 1
 
     def sample_batch(self):
-        mini_batch = np.random.choice(self.buffer, self.batch_size)
-        # clear lists
-        states_batch = []
-        actions_batch = []
-        rewards_batch = []
-        next_states_batch = []
+        batch_indices = np.random.choice(self.buffer_counter, self.batch_size)
+        # Convert to tensors
+        state_batch = tf.convert_to_tensor(self.state_buffer[batch_indices])
+        action_batch = tf.convert_to_tensor(self.action_buffer[batch_indices])
+        reward_batch = tf.convert_to_tensor(self.reward_buffer[batch_indices])
+        reward_batch = tf.cast(reward_batch, dtype=tf.float32)
+        next_state_batch = tf.convert_to_tensor(self.next_state_buffer[batch_indices])
 
-        for index, sample in enumerate(mini_batch):
-            state, action, reward, next_state = sample
-            states_batch.append(state)
-            actions_batch.append(action)
-            rewards_batch.append(reward)
-            next_states_batch.append(next_state)
-
-        # convert python lists to numpy array
-        states_batch = np.array(states_batch)
-        actions_batch = np.array(actions_batch)
-        rewards_batch = np.array(rewards_batch)
-        next_states_batch = np.array(next_states_batch)
-
-        return states_batch, actions_batch, rewards_batch, next_states_batch
+        return state_batch, action_batch, reward_batch, next_state_batch
 
 
 
