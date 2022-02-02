@@ -4,9 +4,7 @@ import Model
 import gym
 import tensorflow as tf
 
-# environment description
-#
-problem = "Pendulum-v1"
+problem = "LunarLanderContinuous-v2"
 env = gym.make(problem)
 num_states = env.observation_space.shape[0]
 num_actions = env.action_space.shape[0]
@@ -24,7 +22,7 @@ def test(train_id):
     # To store average reward history of last few episodes
     avg_reward_list = []
     # load model weights for target actor
-    model.target_actor = model.load_model_weights(train_id, 100)
+    model.target_actor = model.load_model_weights(train_id, 500)
     for e in range(episodes):
         # get current state, the process gets started by calling
         # reset(), which returns an initial observation

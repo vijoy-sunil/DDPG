@@ -39,7 +39,7 @@ class Model:
         self.target_actor.set_weights(self.actor.get_weights())
         self.target_critic.set_weights(self.critic.get_weights())
         # replay buffer
-        self.replay_buffer_capacity = 50000
+        self.replay_buffer_capacity = 20000
         self.batch_size = 64
         self.replay_buffer = ReplayBuffer.ReplayBuffer(self.replay_buffer_capacity,
                                                        self.batch_size,
@@ -59,7 +59,8 @@ class Model:
         # between -0.003 and 0.003 as this prevents us from getting 1 or -1
         # output values in the initial stages, which would squash our gradients
         # to zero, as we use the tanh activation.
-        output_0 = layers.Dense(1, activation="tanh", kernel_initializer=last_init)(hidden_2)
+        output_0 = layers.Dense(self.action_space, activation="tanh",
+                                kernel_initializer=last_init)(hidden_2)
         # tanh activation function
         # The function takes any real value as input and outputs values
         # in the range -1 to 1. The larger the input (more positive), the

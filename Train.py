@@ -8,8 +8,14 @@ import os
 import shutil
 
 # environment description
-#
-problem = "Pendulum-v1"
+# The task is to land the space-ship between the flags smoothly. The ship has
+# 3 throttles in it. One throttle points downward and other 2 points in the left
+# and right direction. With the help of these, you have to control the Ship.
+# see readme for more details
+# state vector = [x pos, y pos, x vel, y vel, angle, angular velocity, left and
+#                 right leg contact] (8 elements)
+# action is two real values vector from -1 to +1
+problem = "LunarLanderContinuous-v2"
 env = gym.make(problem)
 num_states = env.observation_space.shape[0]
 num_actions = env.action_space.shape[0]
@@ -19,7 +25,7 @@ model = Model.Model(num_states, num_actions, upper_bound)
 noise = Noise.OUActionNoise(mean=np.zeros(1), std_deviation=float(0.2) * np.ones(1))
 
 # parameters
-episodes = 100
+episodes = 500
 avg_reward_lookup_episodes = 40
 ep_save_checkpoint = 100
 
@@ -78,7 +84,7 @@ def train(train_id):
 
     print("training complete")
     # save final episode weights
-    model.save_model_weights(train_id, episodes)
+    model.save_model_weights(train_id, episodes-1)
     # plot result
     plot_avg_reward(train_id, avg_reward_list)
 
