@@ -30,7 +30,8 @@ class ReplayBuffer:
         self.buffer_counter += 1
 
     def sample_batch(self):
-        batch_indices = np.random.choice(self.buffer_counter, self.batch_size)
+        record_range = min(self.buffer_counter, self.buffer_capacity)
+        batch_indices = np.random.choice(record_range, self.batch_size)
         # Convert to tensors
         state_batch = tf.convert_to_tensor(self.state_buffer[batch_indices])
         action_batch = tf.convert_to_tensor(self.action_buffer[batch_indices])
