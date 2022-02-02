@@ -5,6 +5,8 @@ import Noise
 import gym
 import tensorflow as tf
 
+# environment description
+#
 problem = "Pendulum-v1"
 env = gym.make(problem)
 num_states = env.observation_space.shape[0]
@@ -16,7 +18,6 @@ noise = Noise.OUActionNoise(mean=np.zeros(1), std_deviation=float(0.2) * np.ones
 
 # parameters
 episodes = 100
-max_epochs_per_episode = 150
 avg_reward_lookup_episodes = 40
 ep_save_checkpoint = 100
 
@@ -45,17 +46,22 @@ def train(train_id):
             action = model.actor(tf_state) + noise()
             # play step
             next_state, reward, done, _ = env.step(action[0])
-            ep_reward += reward
 
             # save to replay buffer
             model.replay_buffer.add_experience((state, action, reward, next_state))
             # train
             if model.replay_buffer.get_size() > model.batch_size:
                 model.train()
-                model.update_target_weights()
+                # The .variables accessor from tf.keras.Model gives us a collection
+                # of references to the model's variables
+                model.update_target_weights(model.actor.variables,
+                                            model.target_actor.variables)
+                model.update_target_weights(model.critic.variables,
+                                            model.target_critic.variables)
 
-            # update state
+            # update
             state = next_state
+            ep_reward += reward
             epoch += 1
 
         # episode is complete
@@ -64,11 +70,15 @@ def train(train_id):
         avg_reward_list.append(avg_reward)
         print("episode {} complete, epochs {}, reward {}, avg reward in last {} episodes {}"\
               .format(e, epoch, ep_reward, avg_reward_lookup_episodes, avg_reward))
-        # plot result
-        plot_avg_reward(train_id, avg_reward_list)
         # save model weights every x episodes
         if e % ep_save_checkpoint == 0:
             model.save_model_weights(train_id, e)
+
+    print("training complete")
+    # save final episode weights
+    model.save_model_weights(train_id, episodes)
+    # plot result
+    plot_avg_reward(train_id, avg_reward_list)
 
 def plot_avg_reward(train_id, avg_reward_list):
     plt.plot(avg_reward_list)
