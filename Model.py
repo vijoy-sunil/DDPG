@@ -133,7 +133,7 @@ class Model:
     # load and save model weights, NOTE: we are not saving model
     # architecture here
     def load_model_weights(self, train_id, ep_id):
-        weights_file = self.weights_dir + str(train_id) + ep_id + '.h5'
+        weights_file = self.weights_dir + 'target_actor' + str(train_id) + str(ep_id) + '.h5'
         weights = load_model(weights_file)
         return weights
 

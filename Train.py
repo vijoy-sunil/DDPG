@@ -4,6 +4,8 @@ import Model
 import Noise
 import gym
 import tensorflow as tf
+import os
+import shutil
 
 # environment description
 #
@@ -90,6 +92,20 @@ def plot_avg_reward(train_id, avg_reward_list):
     plt.savefig(fig_path)
     plt.show()
 
+# clear previous saved outputs
+def clear_history(folder):
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print('Failed to delete %s. Reason: %s' % (file_path, e))
+
 
 if __name__ == "__main__":
+    clear_history('Weights/')
+    clear_history('Log/')
     train(0)
