@@ -59,6 +59,8 @@ def test(train_id):
     # plot result, with different name
     test_id = train_id + 0.1
     Train.plot_avg_reward(test_id, avg_reward_list)
+    # close env
+    env.close()
 
 
 if __name__ == "__main__":

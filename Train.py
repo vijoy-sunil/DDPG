@@ -25,7 +25,7 @@ model = Model.Model(num_states, num_actions, upper_bound)
 noise = Noise.OUActionNoise(mean=np.zeros(1), std_deviation=float(0.2) * np.ones(1))
 
 # parameters
-episodes = 500
+episodes = 400
 avg_reward_lookup_episodes = 40
 ep_save_checkpoint = 100
 
@@ -87,6 +87,8 @@ def train(train_id):
     model.save_model_weights(train_id, episodes-1)
     # plot result
     plot_avg_reward(train_id, avg_reward_list)
+    # close env
+    env.close()
 
 def plot_avg_reward(train_id, avg_reward_list):
     plt.plot(avg_reward_list)
