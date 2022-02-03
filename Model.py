@@ -50,17 +50,17 @@ class Model:
 
     # network architecture
     def get_actor(self):
-        # Initialize weights between -3e-3 and 3-e3 in the final layer
-        last_init = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
         input_0 = layers.Input(shape=(self.state_space,))
-        hidden_1 = layers.Dense(256, activation="relu")(input_0)
-        hidden_2 = layers.Dense(256, activation="relu")(hidden_1)
+        hidden_1 = layers.Dense(400, activation="relu")(input_0)
+        hidden_2 = layers.Dense(400, activation="relu")(hidden_1)
         # Note: We need the initialization for last layer of the Actor to be
         # between -0.003 and 0.003 as this prevents us from getting 1 or -1
         # output values in the initial stages, which would squash our gradients
         # to zero, as we use the tanh activation.
+        # Initialize weights in the final layer
+        weights_init_1 = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
         output_0 = layers.Dense(self.action_space, activation="tanh",
-                                kernel_initializer=last_init)(hidden_2)
+                                kernel_initializer=weights_init_1)(hidden_2)
         # tanh activation function
         # The function takes any real value as input and outputs values
         # in the range -1 to 1. The larger the input (more positive), the
@@ -137,6 +137,20 @@ class Model:
         weights_file = self.weights_dir + 'target_actor_' + str(train_id) + '_' + str(ep_id) + '.h5'
         weights = load_model(weights_file)
         return weights
+
+    def continue_training(self, train_id, ep_id):
+        # load actor
+        weights_file = self.weights_dir + 'actor_' + str(train_id) + '_' + str(ep_id) + '.h5'
+        self.actor = load_model(weights_file)
+        # load critic
+        weights_file = self.weights_dir + 'critic_' + str(train_id) + '_' + str(ep_id) + '.h5'
+        self.critic = load_model(weights_file)
+        # load target_actor
+        weights_file = self.weights_dir + 'target_actor_' + str(train_id) + '_' + str(ep_id) + '.h5'
+        self.target_actor = load_model(weights_file)
+        # load target_critic
+        weights_file = self.weights_dir + 'target_critic_' + str(train_id) + '_' + str(ep_id) + '.h5'
+        self.target_critic = load_model(weights_file)
 
     def save_model_weights(self, train_id, ep_id):
         weights_file = self.weights_dir + 'actor_' + str(train_id) + '_' + str(ep_id) + '.h5'
