@@ -22,7 +22,7 @@ def test(train_id):
     # To store average reward history of last few episodes
     avg_reward_list = []
     # load model weights for target actor
-    model.target_actor = model.load_model_weights(train_id, 500)
+    model.target_actor = model.load_model_weights(train_id, 499)
     for e in range(episodes):
         # get current state, the process gets started by calling
         # reset(), which returns an initial observation
@@ -65,4 +65,4 @@ def test(train_id):
 
 if __name__ == "__main__":
     # test with train_id
-    test(0)
+    test(2)

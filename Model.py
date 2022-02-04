@@ -19,9 +19,9 @@ class Model:
         self.actor_lr = 0.001
         self.critic_lr = 0.002
         # discount factor for future rewards
-        self.gamma = 0.9
+        self.gamma = 0.99
         # rate of update for target_ networks
-        self.tau = 0.005
+        self.tau = 0.001
         # networks
         self.actor = self.get_actor()
         self.critic = self.get_critic()
@@ -40,7 +40,7 @@ class Model:
         self.target_critic.set_weights(self.critic.get_weights())
         # replay buffer
         self.replay_buffer_capacity = 20000
-        self.batch_size = 64
+        self.batch_size = 256
         self.replay_buffer = ReplayBuffer.ReplayBuffer(self.replay_buffer_capacity,
                                                        self.batch_size,
                                                        self.state_space,
@@ -51,16 +51,12 @@ class Model:
     # network architecture
     def get_actor(self):
         input_0 = layers.Input(shape=(self.state_space,))
-        hidden_1 = layers.Dense(400, activation="relu")(input_0)
-        hidden_2 = layers.Dense(400, activation="relu")(hidden_1)
-        # Note: We need the initialization for last layer of the Actor to be
-        # between -0.003 and 0.003 as this prevents us from getting 1 or -1
-        # output values in the initial stages, which would squash our gradients
-        # to zero, as we use the tanh activation.
-        # Initialize weights in the final layer
-        weights_init_1 = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
+        hidden_0 = layers.Dense(256, activation="relu")(input_0)
+        hidden_1 = layers.Flatten()(hidden_0)
+        hidden_2 = layers.Dense(128, activation="relu")(hidden_1)
+        initializer = tf.keras.initializers.RandomUniform()
         output_0 = layers.Dense(self.action_space, activation="tanh",
-                                kernel_initializer=weights_init_1)(hidden_2)
+                                kernel_initializer=initializer)(hidden_2)
         # tanh activation function
         # The function takes any real value as input and outputs values
         # in the range -1 to 1. The larger the input (more positive), the
@@ -74,16 +70,20 @@ class Model:
     def get_critic(self):
         # State as input
         input_0 = layers.Input(shape=(self.state_space,))
-        hidden_1 = layers.Dense(16, activation="relu")(input_0)
-        hidden_2 = layers.Dense(32, activation="relu")(hidden_1)
+        hidden_0 = layers.Dense(256, activation="relu")(input_0)
+        hidden_1 = layers.Flatten()(hidden_0)
+
         # Action as input
         input_1 = layers.Input(shape=(self.action_space,))
-        hidden_3 = layers.Dense(32, activation="relu")(input_1)
+
         # Both are passed through separate layer before concatenating
-        concat = layers.Concatenate()([hidden_2, hidden_3])
-        hidden_4 = layers.Dense(256, activation="relu")(concat)
-        hidden_5 = layers.Dense(256, activation="relu")(hidden_4)
-        output_0 = layers.Dense(1)(hidden_5)
+        concat = layers.Concatenate()([hidden_1, input_1])
+
+        hidden_2 = layers.Dense(128, activation="relu")(concat)
+
+        initializer = tf.keras.initializers.RandomUniform()
+        output_0 = layers.Dense(1, activation='linear',
+                                kernel_initializer=initializer)(hidden_2)
         # Outputs single value for give state-action
         model = tf.keras.Model([input_0, input_1], output_0)
         return model
@@ -127,9 +127,19 @@ class Model:
 
     # Instead of updating the target network periodically and all at once,
     # we will be updating it frequently, but slowly.
-    def update_target_weights(self, source_weights, target_weights):
-        for (d, s) in zip(target_weights, source_weights):
-            d.assign(s * self.tau + d * (1 - self.tau))
+    def update_target_weights_actor(self):
+        source_w, target_w = self.actor.get_weights(), self.target_actor.get_weights()
+        for i in range(len(source_w)):
+            target_w[i] = self.tau * source_w[i] + (1 - self.tau) * target_w[i]
+
+        self.target_actor.set_weights(target_w)
+
+    def update_target_weights_critic(self):
+        source_w, target_w = self.critic.get_weights(), self.target_critic.get_weights()
+        for i in range(len(source_w)):
+            target_w[i] = self.tau * source_w[i] + (1 - self.tau) * target_w[i]
+
+        self.target_critic.set_weights(target_w)
 
     # load and save model weights, NOTE: we are not saving model
     # architecture here
