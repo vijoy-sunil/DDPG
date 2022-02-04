@@ -22,7 +22,7 @@ num_actions = env.action_space.shape[0]
 upper_bound = env.action_space.high[0]
 
 model = Model.Model(num_states, num_actions, upper_bound)
-noise = Noise.OUActionNoise(mean=np.zeros(1), std_deviation=float(0.2) * np.ones(1))
+noise = Noise.OUActionNoise(mean=np.zeros(num_actions), std_deviation=float(0.2) * np.ones(1))
 
 # parameters
 episodes = 400
@@ -35,7 +35,7 @@ def train(train_id):
     # To store average reward history of last few episodes
     avg_reward_list = []
     # continue training - loads last saved weights
-    # model.continue_training(train_id, episodes-1)
+    # model.continue_training(2, 499)
     for e in range(episodes):
         # get current state, the process gets started by calling
         # reset(), which returns an initial observation
@@ -64,10 +64,8 @@ def train(train_id):
                 model.train()
                 # The .variables accessor from tf.keras.Model gives us a collection
                 # of references to the model's variables
-                model.update_target_weights(model.actor.variables,
-                                            model.target_actor.variables)
-                model.update_target_weights(model.critic.variables,
-                                            model.target_critic.variables)
+                model.update_target_weights_actor()
+                model.update_target_weights_critic()
 
             # update
             state = next_state
@@ -78,10 +76,11 @@ def train(train_id):
         ep_reward_list.append(ep_reward)
         avg_reward = np.mean(ep_reward_list[-avg_reward_lookup_episodes:])
         avg_reward_list.append(avg_reward)
-        print("episode {} complete, epochs {}, reward {}, avg reward in last {} episodes {}"\
+        print("episode {} complete, epochs {}, reward {}, avg reward in last {} episodes {}"
               .format(e, epoch, ep_reward, avg_reward_lookup_episodes, avg_reward))
         # save model weights every x episodes
         if e % ep_save_checkpoint == 0:
+            print("saving checkpoint weights, episode {}".format(e))
             model.save_model_weights(train_id, e)
 
     print("training complete")
@@ -116,6 +115,6 @@ def clear_history(folder):
 
 
 if __name__ == "__main__":
-    clear_history('Weights/')
-    clear_history('Log/')
-    train(0)
+    # clear_history('Weights/')
+    # clear_history('Log/')
+    train(4)
