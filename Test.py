@@ -13,7 +13,7 @@ upper_bound = env.action_space.high[0]
 model = Model.Model(num_states, num_actions, upper_bound)
 
 # parameters
-episodes = 25
+episodes = 10
 avg_reward_lookup_episodes = 40
 
 def test(train_id):
@@ -65,4 +65,4 @@ def test(train_id):
 
 if __name__ == "__main__":
     # test with train_id
-    test(2)
+    test(0)

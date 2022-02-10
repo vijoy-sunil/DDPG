@@ -1,8 +1,5 @@
-import numpy as np
-
 import ReplayBuffer
 import tensorflow as tf
-# Note tensorflow.keras is different from keras
 from tensorflow.keras import layers
 from keras.optimizers import adam_v2
 from keras.models import load_model
@@ -16,8 +13,8 @@ class Model:
         print("state space {}, action space {}, action upper bound {}"
               .format(state_space, action_space, upper_bound_action))
         # learning rates
-        self.actor_lr = 0.001
-        self.critic_lr = 0.002
+        self.actor_lr = 0.00005
+        self.critic_lr = 0.0005
         # discount factor for future rewards
         self.gamma = 0.99
         # rate of update for target_ networks
@@ -127,19 +124,12 @@ class Model:
 
     # Instead of updating the target network periodically and all at once,
     # we will be updating it frequently, but slowly.
-    def update_target_weights_actor(self):
-        source_w, target_w = self.actor.get_weights(), self.target_actor.get_weights()
+    def update_target_weights(self, source_model, target_model):
+        source_w, target_w = source_model.get_weights(), target_model.get_weights()
         for i in range(len(source_w)):
             target_w[i] = self.tau * source_w[i] + (1 - self.tau) * target_w[i]
 
-        self.target_actor.set_weights(target_w)
-
-    def update_target_weights_critic(self):
-        source_w, target_w = self.critic.get_weights(), self.target_critic.get_weights()
-        for i in range(len(source_w)):
-            target_w[i] = self.tau * source_w[i] + (1 - self.tau) * target_w[i]
-
-        self.target_critic.set_weights(target_w)
+        target_model.set_weights(target_w)
 
     # load and save model weights, NOTE: we are not saving model
     # architecture here

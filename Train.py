@@ -22,7 +22,7 @@ num_actions = env.action_space.shape[0]
 upper_bound = env.action_space.high[0]
 
 model = Model.Model(num_states, num_actions, upper_bound)
-noise = Noise.OUActionNoise(mean=np.zeros(num_actions), std_deviation=float(0.2) * np.ones(1))
+noise = Noise.OUActionNoise(mean=np.zeros(num_actions))
 
 # parameters
 episodes = 400
@@ -64,8 +64,8 @@ def train(train_id):
                 model.train()
                 # The .variables accessor from tf.keras.Model gives us a collection
                 # of references to the model's variables
-                model.update_target_weights_actor()
-                model.update_target_weights_critic()
+                model.update_target_weights(model.actor, model.target_actor)
+                model.update_target_weights(model.critic, model.target_critic)
 
             # update
             state = next_state
@@ -115,6 +115,6 @@ def clear_history(folder):
 
 
 if __name__ == "__main__":
-    # clear_history('Weights/')
-    # clear_history('Log/')
-    train(4)
+    clear_history('Weights/')
+    clear_history('Log/')
+    train(0)
