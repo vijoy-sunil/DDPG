@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import matplotlib.pyplot as plt
 import Model
@@ -25,7 +27,7 @@ model = Model.Model(num_states, num_actions, upper_bound)
 noise = Noise.OUActionNoise(mean=np.zeros(num_actions))
 
 # parameters
-episodes = 400
+episodes = 800
 avg_reward_lookup_episodes = 40
 ep_save_checkpoint = 100
 
@@ -48,7 +50,7 @@ def train(train_id):
         epoch = 0
         # start episode
         while done is not True:
-            env.render()
+            # env.render()
             # reshape input state
             # same as state = state.reshape(1, num_states)
             tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
@@ -58,7 +60,7 @@ def train(train_id):
             next_state, reward, done, _ = env.step(action[0])
 
             # save to replay buffer
-            model.replay_buffer.add_experience((state, action, reward, next_state))
+            model.replay_buffer.add_experience((state, action, reward, next_state, done))
             # train
             if model.replay_buffer.get_size() > model.batch_size:
                 model.train()
@@ -76,10 +78,14 @@ def train(train_id):
         ep_reward_list.append(ep_reward)
         avg_reward = np.mean(ep_reward_list[-avg_reward_lookup_episodes:])
         avg_reward_list.append(avg_reward)
-        print("episode {} complete, epochs {}, reward {}, avg reward in last {} episodes {}"
-              .format(e, epoch, ep_reward, avg_reward_lookup_episodes, avg_reward))
+        print("episode {} complete, epochs {}, reward {}, "
+              "avg reward in last {} episodes {}, "
+              "replay buffer size {}".format(e, epoch, ep_reward,
+                                             avg_reward_lookup_episodes, avg_reward,
+                                             model.replay_buffer.buffer_counter))
+
         # save model weights every x episodes
-        if e % ep_save_checkpoint == 0:
+        if e % ep_save_checkpoint == 0 and e != 0:
             print("saving checkpoint weights, episode {}".format(e))
             model.save_model_weights(train_id, e)
 
@@ -116,5 +122,5 @@ def clear_history(folder):
 
 if __name__ == "__main__":
     clear_history('Weights/')
-    clear_history('Log/')
-    train(0)
+    # clear_history('Log/')
+    train(1)

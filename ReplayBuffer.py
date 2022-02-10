@@ -12,13 +12,14 @@ class ReplayBuffer:
         self.action_buffer = np.zeros((self.buffer_capacity, action_space))
         self.reward_buffer = np.zeros((self.buffer_capacity, 1))
         self.next_state_buffer = np.zeros((self.buffer_capacity, state_space))
+        self.done_buffer = np.zeros((self.buffer_capacity, 1))
 
     def get_size(self):
         return self.buffer_counter
 
     # left most element gets popped when size exceeds maxlen
     def add_experience(self, experience):
-        state, action, reward, next_state = experience
+        state, action, reward, next_state, done = experience
         # Set index to zero if buffer_capacity is exceeded, replacing
         # old records
         index = self.buffer_counter % self.buffer_capacity
@@ -26,6 +27,7 @@ class ReplayBuffer:
         self.action_buffer[index] = action
         self.reward_buffer[index] = reward
         self.next_state_buffer[index] = next_state
+        self.done_buffer[index] = done
         # increment counter
         self.buffer_counter += 1
 
@@ -39,7 +41,10 @@ class ReplayBuffer:
         reward_batch = tf.cast(reward_batch, dtype=tf.float32)
         next_state_batch = tf.convert_to_tensor(self.next_state_buffer[batch_indices])
 
-        return state_batch, action_batch, reward_batch, next_state_batch
+        done_batch = tf.convert_to_tensor(self.done_buffer[batch_indices])
+        done_batch = tf.cast(reward_batch, dtype=tf.float32)
+
+        return state_batch, action_batch, reward_batch, next_state_batch, done_batch
 
 
 

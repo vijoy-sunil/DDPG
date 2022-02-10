@@ -18,7 +18,7 @@ class Model:
         # discount factor for future rewards
         self.gamma = 0.99
         # rate of update for target_ networks
-        self.tau = 0.001
+        self.tau = 0.005
         # networks
         self.actor = self.get_actor()
         self.critic = self.get_critic()
@@ -27,11 +27,6 @@ class Model:
         # optimizers
         self.actor_optimizer = adam_v2.Adam(learning_rate=self.actor_lr)
         self.critic_optimizer = adam_v2.Adam(learning_rate=self.critic_lr)
-        # compile the model
-        self.actor.compile(optimizer=self.actor_optimizer)
-        self.critic.compile(optimizer=self.critic_optimizer)
-        self.target_actor.compile(optimizer=self.actor_optimizer)
-        self.target_critic.compile(optimizer=self.critic_optimizer)
         # Making the weights equal initially
         self.target_actor.set_weights(self.actor.get_weights())
         self.target_critic.set_weights(self.critic.get_weights())
@@ -85,11 +80,13 @@ class Model:
         model = tf.keras.Model([input_0, input_1], output_0)
         return model
 
+    @tf.function
     def train(self):
         # get batch
-        state_batch, action_batch, reward_batch, next_state_batch = \
+        state_batch, action_batch, reward_batch, next_state_batch, done_batch = \
             self.replay_buffer.sample_batch()
         # first, train critic model
+        ones = tf.ones((self.batch_size, 1))
         with tf.GradientTape() as tape:
             # Some neural network layers behave differently during training
             # and inference, for example Dropout and BatchNormalization layers.
@@ -100,11 +97,13 @@ class Model:
             # layer know which of the two "paths" it should take. If you set this
             # incorrectly, your network might not behave as expected.
             target_actions = self.target_actor(next_state_batch, training=True)
-            y = reward_batch + self.gamma * \
-                self.target_critic([next_state_batch, target_actions], training=True)
+            q_values = self.target_critic([next_state_batch, target_actions], training=True)
+            # bellman equation
+            y = reward_batch + self.gamma * q_values * (ones - done_batch)
 
             critic_value = self.critic([state_batch, action_batch], training=True)
-            critic_loss = tf.math.reduce_mean(tf.math.square(y - critic_value))
+            critic_loss = tf.math.reduce_mean(
+                          tf.math.square(y - critic_value))
 
         critic_grad = tape.gradient(critic_loss, self.critic.trainable_variables)
         self.critic_optimizer.apply_gradients(
