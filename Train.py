@@ -27,7 +27,7 @@ model = Model.Model(num_states, num_actions, upper_bound)
 noise = Noise.OUActionNoise(mean=np.zeros(num_actions))
 
 # parameters
-episodes = 800
+episodes = 1600
 avg_reward_lookup_episodes = 40
 ep_save_checkpoint = 100
 
@@ -50,7 +50,7 @@ def train(train_id):
         epoch = 0
         # start episode
         while done is not True:
-            # env.render()
+            env.render()
             # reshape input state
             # same as state = state.reshape(1, num_states)
             tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
@@ -64,10 +64,7 @@ def train(train_id):
             # train
             if model.replay_buffer.get_size() > model.batch_size:
                 model.train()
-                # The .variables accessor from tf.keras.Model gives us a collection
-                # of references to the model's variables
-                model.update_target_weights(model.actor, model.target_actor)
-                model.update_target_weights(model.critic, model.target_critic)
+                model.update_target_weights()
 
             # update
             state = next_state
@@ -123,4 +120,4 @@ def clear_history(folder):
 if __name__ == "__main__":
     clear_history('Weights/')
     # clear_history('Log/')
-    train(1)
+    train(0)

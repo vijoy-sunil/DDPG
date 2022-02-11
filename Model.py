@@ -32,7 +32,7 @@ class Model:
         self.target_critic.set_weights(self.critic.get_weights())
         # replay buffer
         self.replay_buffer_capacity = 20000
-        self.batch_size = 256
+        self.batch_size = 64
         self.replay_buffer = ReplayBuffer.ReplayBuffer(self.replay_buffer_capacity,
                                                        self.batch_size,
                                                        self.state_space,
@@ -44,11 +44,8 @@ class Model:
     def get_actor(self):
         input_0 = layers.Input(shape=(self.state_space,))
         hidden_0 = layers.Dense(256, activation="relu")(input_0)
-        hidden_1 = layers.Flatten()(hidden_0)
-        hidden_2 = layers.Dense(128, activation="relu")(hidden_1)
-        initializer = tf.keras.initializers.RandomUniform()
-        output_0 = layers.Dense(self.action_space, activation="tanh",
-                                kernel_initializer=initializer)(hidden_2)
+        hidden_1 = layers.Dense(128, activation="relu")(hidden_0)
+        output_0 = layers.Dense(self.action_space, activation="tanh")(hidden_1)
         # tanh activation function
         # The function takes any real value as input and outputs values
         # in the range -1 to 1. The larger the input (more positive), the
@@ -63,19 +60,14 @@ class Model:
         # State as input
         input_0 = layers.Input(shape=(self.state_space,))
         hidden_0 = layers.Dense(256, activation="relu")(input_0)
-        hidden_1 = layers.Flatten()(hidden_0)
-
+        hidden_1 = layers.Dense(128, activation="relu")(hidden_0)
         # Action as input
         input_1 = layers.Input(shape=(self.action_space,))
-
-        # Both are passed through separate layer before concatenating
-        concat = layers.Concatenate()([hidden_1, input_1])
-
-        hidden_2 = layers.Dense(128, activation="relu")(concat)
-
-        initializer = tf.keras.initializers.RandomUniform()
-        output_0 = layers.Dense(1, activation='linear',
-                                kernel_initializer=initializer)(hidden_2)
+        hidden_2 = layers.Dense(128, activation="relu")(input_1)
+        # Concat
+        concat = layers.Concatenate()([hidden_1, hidden_2])
+        hidden_3 = layers.Dense(128, activation="relu")(concat)
+        output_0 = layers.Dense(1, activation='linear')(hidden_3)
         # Outputs single value for give state-action
         model = tf.keras.Model([input_0, input_1], output_0)
         return model
@@ -123,12 +115,18 @@ class Model:
 
     # Instead of updating the target network periodically and all at once,
     # we will be updating it frequently, but slowly.
-    def update_target_weights(self, source_model, target_model):
-        source_w, target_w = source_model.get_weights(), target_model.get_weights()
+    def update_target_weights(self):
+        # actor -> target_actor
+        source_w, target_w = self.actor.get_weights(), self.target_actor.get_weights()
         for i in range(len(source_w)):
             target_w[i] = self.tau * source_w[i] + (1 - self.tau) * target_w[i]
+        self.target_actor.set_weights(target_w)
 
-        target_model.set_weights(target_w)
+        # critic -> target_critic
+        source_w, target_w = self.critic.get_weights(), self.target_critic.get_weights()
+        for i in range(len(source_w)):
+            target_w[i] = self.tau * source_w[i] + (1 - self.tau) * target_w[i]
+        self.target_critic.set_weights(target_w)
 
     # load and save model weights, NOTE: we are not saving model
     # architecture here
