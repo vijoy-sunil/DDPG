@@ -13,12 +13,12 @@ class Model:
         print("state space {}, action space {}, action upper bound {}"
               .format(state_space, action_space, upper_bound_action))
         # learning rates
-        self.actor_lr = 0.00005
-        self.critic_lr = 0.0005
+        self.actor_lr = 0.0001
+        self.critic_lr = 0.001
         # discount factor for future rewards
         self.gamma = 0.99
         # rate of update for target_ networks
-        self.tau = 0.005
+        self.tau = 0.001
         # networks
         self.actor = self.get_actor()
         self.critic = self.get_critic()
@@ -31,8 +31,8 @@ class Model:
         self.target_actor.set_weights(self.actor.get_weights())
         self.target_critic.set_weights(self.critic.get_weights())
         # replay buffer
-        self.replay_buffer_capacity = 20000
-        self.batch_size = 64
+        self.replay_buffer_capacity = 50000
+        self.batch_size = 100
         self.replay_buffer = ReplayBuffer.ReplayBuffer(self.replay_buffer_capacity,
                                                        self.batch_size,
                                                        self.state_space,
@@ -43,9 +43,18 @@ class Model:
     # network architecture
     def get_actor(self):
         input_0 = layers.Input(shape=(self.state_space,))
-        hidden_0 = layers.Dense(256, activation="relu")(input_0)
-        hidden_1 = layers.Dense(128, activation="relu")(hidden_0)
-        output_0 = layers.Dense(self.action_space, activation="tanh")(hidden_1)
+        hidden_0 = layers.Dense(600)(input_0)
+        bn_0 = layers.BatchNormalization()(hidden_0)
+        ac_0 = layers.Activation('relu')(bn_0)
+
+        w_init_0 = tf.random_uniform_initializer(minval=-0.0015, maxval=0.0015)
+        hidden_1 = layers.Dense(300, kernel_initializer=w_init_0)(ac_0)
+        bn_1 = layers.BatchNormalization()(hidden_1)
+        ac_1 = layers.Activation('relu')(bn_1)
+
+        w_init_1 = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
+        output_0 = layers.Dense(self.action_space, activation="tanh",
+                                kernel_initializer=w_init_1)(ac_1)
         # tanh activation function
         # The function takes any real value as input and outputs values
         # in the range -1 to 1. The larger the input (more positive), the
@@ -59,15 +68,19 @@ class Model:
     def get_critic(self):
         # State as input
         input_0 = layers.Input(shape=(self.state_space,))
-        hidden_0 = layers.Dense(256, activation="relu")(input_0)
-        hidden_1 = layers.Dense(128, activation="relu")(hidden_0)
+        hidden_0 = layers.Dense(600)(input_0)
+        bn_0 = layers.BatchNormalization()(hidden_0)
+        ac_0 = layers.Activation('relu')(bn_0)
+        w_init_0 = tf.random_uniform_initializer(minval=-0.0015, maxval=0.0015)
+        hidden_1 = layers.Dense(300, kernel_initializer=w_init_0)(ac_0)
         # Action as input
         input_1 = layers.Input(shape=(self.action_space,))
-        hidden_2 = layers.Dense(128, activation="relu")(input_1)
+        hidden_2 = layers.Dense(300,)(input_1)
         # Concat
         concat = layers.Concatenate()([hidden_1, hidden_2])
-        hidden_3 = layers.Dense(128, activation="relu")(concat)
-        output_0 = layers.Dense(1, activation='linear')(hidden_3)
+        ac_1 = layers.Activation('relu')(concat)
+        w_init_1 = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
+        output_0 = layers.Dense(1, kernel_initializer=w_init_1)(ac_1)
         # Outputs single value for give state-action
         model = tf.keras.Model([input_0, input_1], output_0)
         return model
@@ -91,7 +104,7 @@ class Model:
             target_actions = self.target_actor(next_state_batch, training=True)
             q_values = self.target_critic([next_state_batch, target_actions], training=True)
             # bellman equation
-            y = reward_batch + self.gamma * q_values * (ones - done_batch)
+            y = reward_batch + (self.gamma * q_values * (ones - done_batch))
 
             critic_value = self.critic([state_batch, action_batch], training=True)
             critic_loss = tf.math.reduce_mean(

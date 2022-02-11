@@ -1,5 +1,3 @@
-import sys
-
 import numpy as np
 import matplotlib.pyplot as plt
 import Model
@@ -9,15 +7,14 @@ import tensorflow as tf
 import os
 import shutil
 
-# environment description
-# The task is to land the space-ship between the flags smoothly. The ship has
-# 3 throttles in it. One throttle points downward and other 2 points in the left
-# and right direction. With the help of these, you have to control the Ship.
-# see readme for more details
-# state vector = [x pos, y pos, x vel, y vel, angle, angular velocity, left and
-#                 right leg contact] (8 elements)
-# action is two real values vector from -1 to +1
-problem = "LunarLanderContinuous-v2"
+# environment description in readme
+# state space: 24
+# State consists of hull angle speed, angular velocity, horizontal speed,
+# vertical speed, position of joints and joints angular speed, legs contact
+# with ground, and 10 lidar rangefinder measurements. There's no coordinates
+# in the state vector.
+# action space: 4 | upper bound 1, lower bound -1
+problem = "BipedalWalker-v3"
 env = gym.make(problem)
 num_states = env.observation_space.shape[0]
 num_actions = env.action_space.shape[0]
@@ -27,9 +24,10 @@ model = Model.Model(num_states, num_actions, upper_bound)
 noise = Noise.OUActionNoise(mean=np.zeros(num_actions))
 
 # parameters
-episodes = 1600
+episodes = 500
 avg_reward_lookup_episodes = 40
 ep_save_checkpoint = 100
+max_epoch_per_ep = 2000
 
 def train(train_id):
     # To store reward history of each episode
@@ -70,6 +68,11 @@ def train(train_id):
             state = next_state
             ep_reward += reward
             epoch += 1
+
+            # end episode when epochs exceed limit
+            if epoch > max_epoch_per_ep:
+                print('epoch limit exceeded')
+                break
 
         # episode is complete
         ep_reward_list.append(ep_reward)
