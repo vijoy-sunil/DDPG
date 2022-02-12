@@ -1,8 +1,10 @@
 import ReplayBuffer
 import tensorflow as tf
 from tensorflow.keras import layers
+from tensorflow.keras.initializers import glorot_normal
 from keras.optimizers import adam_v2
 from keras.models import load_model
+
 
 class Model:
     def __init__(self, state_space, action_space, upper_bound_action):
@@ -42,45 +44,53 @@ class Model:
 
     # network architecture
     def get_actor(self):
-        input_0 = layers.Input(shape=(self.state_space,))
-        hidden_0 = layers.Dense(600)(input_0)
-        bn_0 = layers.BatchNormalization()(hidden_0)
-        ac_0 = layers.Activation('relu')(bn_0)
-
-        w_init_0 = tf.random_uniform_initializer(minval=-0.0015, maxval=0.0015)
-        hidden_1 = layers.Dense(300, kernel_initializer=w_init_0)(ac_0)
-        bn_1 = layers.BatchNormalization()(hidden_1)
-        ac_1 = layers.Activation('relu')(bn_1)
-
-        w_init_1 = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
-        output_0 = layers.Dense(self.action_space, activation="tanh",
-                                kernel_initializer=w_init_1)(ac_1)
+        input_0 = layers.Input(shape=(self.state_space,), dtype=tf.float32)
+        hidden_0 = layers.Dense(600, activation=tf.nn.leaky_relu,
+                                kernel_initializer=glorot_normal())(input_0)
+        hidden_1 = layers.Dense(300, activation=tf.nn.leaky_relu,
+                                kernel_initializer=glorot_normal())(hidden_0)
         # tanh activation function
         # The function takes any real value as input and outputs values
         # in the range -1 to 1. The larger the input (more positive), the
         # closer the output value will be to 1.0, whereas the smaller the
         # input (more negative), the closer the output will be to -1.0.
         # Scale output to -action_bound to action_bound
+
+        # Initialize weights
+        last_init = tf.random_normal_initializer(stddev=0.0005)
+        output_0 = layers.Dense(self.action_space, activation='tanh',
+                                kernel_initializer=last_init)(hidden_1)
         output_0 = output_0 * self.action_bound
         model = tf.keras.Model(input_0, output_0)
         return model
 
     def get_critic(self):
         # State as input
-        input_0 = layers.Input(shape=(self.state_space,))
-        hidden_0 = layers.Dense(600)(input_0)
-        bn_0 = layers.BatchNormalization()(hidden_0)
-        ac_0 = layers.Activation('relu')(bn_0)
-        w_init_0 = tf.random_uniform_initializer(minval=-0.0015, maxval=0.0015)
-        hidden_1 = layers.Dense(300, kernel_initializer=w_init_0)(ac_0)
+        input_0 = layers.Input(shape=(self.state_space,), dtype=tf.float32)
+
+        hidden_0 = layers.Dense(600, activation=tf.nn.leaky_relu,
+                                kernel_initializer=glorot_normal())(input_0)
+        hidden_0 = layers.BatchNormalization()(hidden_0)
+
+        hidden_1 = layers.Dense(300, activation=tf.nn.leaky_relu,
+                                kernel_initializer=glorot_normal())(hidden_0)
+
         # Action as input
-        input_1 = layers.Input(shape=(self.action_space,))
-        hidden_2 = layers.Dense(300,)(input_1)
-        # Concat
-        concat = layers.Concatenate()([hidden_1, hidden_2])
-        ac_1 = layers.Activation('relu')(concat)
-        w_init_1 = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
-        output_0 = layers.Dense(1, kernel_initializer=w_init_1)(ac_1)
+        input_1 = layers.Input(shape=(self.action_space,), dtype=tf.float32)
+
+        hidden_2 = layers.Dense(300, activation=tf.nn.leaky_relu,
+                                kernel_initializer=glorot_normal())(input_1)
+
+        # concat
+        added = layers.Add()([hidden_1, hidden_2])
+        added = layers.BatchNormalization()(added)
+
+        hidden_3 = layers.Dense(150, activation=tf.nn.leaky_relu,
+                                kernel_initializer=glorot_normal())(added)
+        hidden_3 = layers.BatchNormalization()(hidden_3)
+
+        last_init = tf.random_normal_initializer(stddev=0.00005)
+        output_0 = layers.Dense(1, kernel_initializer=last_init)(hidden_3)
         # Outputs single value for give state-action
         model = tf.keras.Model([input_0, input_1], output_0)
         return model
