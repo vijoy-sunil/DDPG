@@ -24,7 +24,7 @@ model = Model.Model(num_states, num_actions, upper_bound)
 noise = Noise.OUActionNoise(mean=np.zeros(num_actions))
 
 # parameters
-episodes = 500
+episodes = 2000
 avg_reward_lookup_episodes = 40
 ep_save_checkpoint = 100
 max_epoch_per_ep = 2000
@@ -35,7 +35,7 @@ def train(train_id):
     # To store average reward history of last few episodes
     avg_reward_list = []
     # continue training - loads last saved weights
-    # model.continue_training(2, 499)
+    # model.continue_training(0, 499)
     for e in range(episodes):
         # get current state, the process gets started by calling
         # reset(), which returns an initial observation
@@ -56,7 +56,6 @@ def train(train_id):
             action = model.actor(tf_state) + noise()
             # play step
             next_state, reward, done, _ = env.step(action[0])
-
             # save to replay buffer
             model.replay_buffer.add_experience((state, action, reward, next_state, done))
             # train
@@ -122,5 +121,5 @@ def clear_history(folder):
 
 if __name__ == "__main__":
     clear_history('Weights/')
-    # clear_history('Log/')
+    clear_history('Log/')
     train(0)

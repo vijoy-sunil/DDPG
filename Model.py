@@ -13,8 +13,8 @@ class Model:
         print("state space {}, action space {}, action upper bound {}"
               .format(state_space, action_space, upper_bound_action))
         # learning rates
-        self.actor_lr = 0.0001
-        self.critic_lr = 0.001
+        self.actor_lr = 0.00005
+        self.critic_lr = 0.0005
         # discount factor for future rewards
         self.gamma = 0.99
         # rate of update for target_ networks
@@ -31,7 +31,7 @@ class Model:
         self.target_actor.set_weights(self.actor.get_weights())
         self.target_critic.set_weights(self.critic.get_weights())
         # replay buffer
-        self.replay_buffer_capacity = 50000
+        self.replay_buffer_capacity = 100000
         self.batch_size = 100
         self.replay_buffer = ReplayBuffer.ReplayBuffer(self.replay_buffer_capacity,
                                                        self.batch_size,
@@ -107,8 +107,7 @@ class Model:
             y = reward_batch + (self.gamma * q_values * (ones - done_batch))
 
             critic_value = self.critic([state_batch, action_batch], training=True)
-            critic_loss = tf.math.reduce_mean(
-                          tf.math.square(y - critic_value))
+            critic_loss = tf.math.reduce_mean(tf.math.square(y - critic_value))
 
         critic_grad = tape.gradient(critic_loss, self.critic.trainable_variables)
         self.critic_optimizer.apply_gradients(
