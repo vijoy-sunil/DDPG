@@ -1,6 +1,8 @@
 **Environment**\
 BipedalWalker [Link](https://gym.openai.com/envs/BipedalWalker-v2/)
 
+<img src="./Images/bipedal_walker_0.png" alt="drawing" width="600"/>
+
 *Action Space*
 1. BipedalWalker has 2 legs. 
 2. Each leg has 2 joints. 
@@ -18,3 +20,4 @@ BipedalWalker [Link](https://gym.openai.com/envs/BipedalWalker-v2/)
 
 **Reference**
 1. Deep Deterministic Policy Gradient (DDPG) [Link](https://keras.io/examples/rl/ddpg_pendulum/)
+2. Network architecture [Link](https://github.com/samuelmat19/DDPG-tf2)
