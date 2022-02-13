@@ -1,9 +1,7 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import Model
+import Utils
 import gym
-import os
-import shutil
 
 # environment description in readme
 # state space: 24
@@ -44,6 +42,8 @@ def train(train_id):
         done = False
         # clear epoch count
         epoch = 0
+        # reset noise
+        model.noise.reset()
         # start episode
         while done is not True:
             env.render()
@@ -86,34 +86,12 @@ def train(train_id):
     # save final episode weights
     model.save_model_weights(train_id, episodes-1)
     # plot result
-    plot_avg_reward(train_id, avg_reward_list)
+    Utils.plot_avg_reward(train_id, avg_reward_list)
     # close env
     env.close()
 
-def plot_avg_reward(train_id, avg_reward_list):
-    plt.plot(avg_reward_list)
-    plt.xlabel("episode")
-    plt.ylabel("avg reward")
-    # save fig
-    fig_name = str(train_id) + '.png'
-    fig_path = 'Log/' + fig_name
-    plt.savefig(fig_path)
-    plt.show()
-
-# clear previous saved outputs
-def clear_history(folder):
-    for filename in os.listdir(folder):
-        file_path = os.path.join(folder, filename)
-        try:
-            if os.path.isfile(file_path) or os.path.islink(file_path):
-                os.unlink(file_path)
-            elif os.path.isdir(file_path):
-                shutil.rmtree(file_path)
-        except Exception as e:
-            print('Failed to delete %s. Reason: %s' % (file_path, e))
-
 
 if __name__ == "__main__":
-    clear_history('Weights/')
-    clear_history('Log/')
+    # Utils.clear_history('Weights/')
+    # Utils.clear_history('Log/')
     train(0)
