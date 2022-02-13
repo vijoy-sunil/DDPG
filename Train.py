@@ -31,7 +31,7 @@ def train(train_id):
     # To store average reward history of last few episodes
     avg_reward_list = []
     # continue training - loads last saved weights
-    # model.continue_training(0, 499)
+    # model.continue_training(0, 1100)
     for e in range(episodes):
         # get current state, the process gets started by calling
         # reset(), which returns an initial observation
@@ -94,4 +94,4 @@ def train(train_id):
 if __name__ == "__main__":
     # Utils.clear_history('Weights/')
     # Utils.clear_history('Log/')
-    train(0)
+    train(1)

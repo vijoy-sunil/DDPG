@@ -22,7 +22,7 @@ model = Model.Model(num_states, num_actions, action_lower_bound, action_upper_bo
 
 # parameters
 episodes = 10
-avg_reward_lookup_episodes = 40
+avg_reward_lookup_episodes = 1
 max_epoch_per_ep = 2000
 
 def test(train_id, ep_id):
@@ -81,4 +81,4 @@ def test(train_id, ep_id):
 
 
 if __name__ == "__main__":
-    test(0, 499)
+    test(0, 1100)
