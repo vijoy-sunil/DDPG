@@ -13,8 +13,7 @@ class ReplayBuffer:
         return len(self.buffer)
 
     # left most element gets popped when size exceeds maxlen
-    def add_experience(self, experience):
-        state, action, reward, next_state, done = experience
+    def add_experience(self, state, action, reward, next_state, done):
         # add to deque
         self.buffer.append([state,
                             action,
@@ -27,6 +26,7 @@ class ReplayBuffer:
                                    size=min(self.batch_size, len(self.buffer)),
                                    replace=False)
         batch = [self.buffer[index] for index in indices]
+        # state, action, reward, next_state, done
         return batch
 
 
