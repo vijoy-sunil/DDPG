@@ -1,9 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import Model
-import Noise
 import gym
-import tensorflow as tf
 import os
 import shutil
 
@@ -18,10 +16,10 @@ problem = "BipedalWalker-v3"
 env = gym.make(problem)
 num_states = env.observation_space.shape[0]
 num_actions = env.action_space.shape[0]
-upper_bound = env.action_space.high[0]
+action_lower_bound = env.action_space.low[0]
+action_upper_bound = env.action_space.high[0]
 
-model = Model.Model(num_states, num_actions, upper_bound)
-noise = Noise.OUActionNoise(mean=np.zeros(num_actions))
+model = Model.Model(num_states, num_actions, action_lower_bound, action_upper_bound)
 
 # parameters
 episodes = 2000
@@ -49,19 +47,15 @@ def train(train_id):
         # start episode
         while done is not True:
             env.render()
-            # reshape input state
-            # same as state = state.reshape(1, num_states)
-            tf_state = tf.expand_dims(tf.convert_to_tensor(state), 0)
             # get action (+ noise)
-            action = model.actor(tf_state) + noise()
+            action = model.act(state)
             # play step
-            next_state, reward, done, _ = env.step(action[0])
+            next_state, reward, done, _ = env.step(action)
             # save to replay buffer
-            model.replay_buffer.add_experience((state, action, reward, next_state, done))
+            model.replay_buffer.add_experience(state, action, reward, next_state, int(done))
             # train
             if model.replay_buffer.get_size() > model.batch_size:
-                model.train()
-                model.update_target_weights()
+                model.learn(model.replay_buffer.sample_batch())
 
             # update
             state = next_state
@@ -81,7 +75,7 @@ def train(train_id):
               "avg reward in last {} episodes {}, "
               "replay buffer size {}".format(e, epoch, ep_reward,
                                              avg_reward_lookup_episodes, avg_reward,
-                                             model.replay_buffer.buffer_counter))
+                                             model.replay_buffer.get_size()))
 
         # save model weights every x episodes
         if e % ep_save_checkpoint == 0 and e != 0:

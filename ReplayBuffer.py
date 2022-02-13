@@ -28,5 +28,3 @@ class ReplayBuffer:
         batch = [self.buffer[index] for index in indices]
         # state, action, reward, next_state, done
         return batch
-
-

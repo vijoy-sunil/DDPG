@@ -1,44 +1,49 @@
 import ReplayBuffer
+import Noise
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras.initializers import glorot_normal
-from keras.optimizers import adam_v2
 from keras.models import load_model
 
 
 class Model:
-    def __init__(self, state_space, action_space, upper_bound_action):
+    def __init__(self, state_space, action_space, action_lower_bound, action_upper_bound):
         # parameters
-        self.action_bound = upper_bound_action
+        self.action_lower_bound = action_lower_bound
+        self.action_upper_bound = action_upper_bound
         self.state_space = state_space
         self.action_space = action_space
-        print("state space {}, action space {}, action upper bound {}"
-              .format(state_space, action_space, upper_bound_action))
+        print("state space {}, action space {}, action lower bound {}, action upper bound {}"
+              .format(state_space, action_space, action_lower_bound, action_upper_bound))
         # learning rates
-        self.actor_lr = 0.00005
-        self.critic_lr = 0.0005
+        self.actor_lr = 0.0001
+        self.critic_lr = 0.001
         # discount factor for future rewards
         self.gamma = 0.99
         # rate of update for target_ networks
         self.tau = 0.001
+        # exploration
+        self.epsilon = 0.2
         # networks
         self.actor = self.get_actor()
         self.critic = self.get_critic()
         self.target_actor = self.get_actor()
         self.target_critic = self.get_critic()
         # optimizers
-        self.actor_optimizer = adam_v2.Adam(learning_rate=self.actor_lr)
-        self.critic_optimizer = adam_v2.Adam(learning_rate=self.critic_lr)
+        self.actor_optimizer = tf.keras.optimizers.Adam(self.actor_lr)
+        self.critic_optimizer = tf.keras.optimizers.Adam(self.critic_lr)
         # Making the weights equal initially
         self.target_actor.set_weights(self.actor.get_weights())
         self.target_critic.set_weights(self.critic.get_weights())
         # replay buffer
         self.replay_buffer_capacity = 100000
-        self.batch_size = 100
+        self.batch_size = 200
         self.replay_buffer = ReplayBuffer.ReplayBuffer(self.replay_buffer_capacity,
-                                                       self.batch_size,
-                                                       self.state_space,
-                                                       self.action_space)
+                                                       self.batch_size)
+        # actor noise
+        self.noise = Noise.OUActionNoise(mean=np.zeros(1),
+                                         std_deviation=float(0.2) * np.ones(1))
         # paths
         self.weights_dir = 'Weights/'
 
@@ -60,7 +65,7 @@ class Model:
         last_init = tf.random_normal_initializer(stddev=0.0005)
         output_0 = layers.Dense(self.action_space, activation='tanh',
                                 kernel_initializer=last_init)(hidden_1)
-        output_0 = output_0 * self.action_bound
+        output_0 = output_0 * self.action_upper_bound
         model = tf.keras.Model(input_0, output_0)
         return model
 
@@ -95,29 +100,28 @@ class Model:
         model = tf.keras.Model([input_0, input_1], output_0)
         return model
 
-    @tf.function
-    def train(self):
-        # get batch
-        state_batch, action_batch, reward_batch, next_state_batch, done_batch = \
-            self.replay_buffer.sample_batch()
-        # first, train critic model
-        ones = tf.ones((self.batch_size, 1))
-        with tf.GradientTape() as tape:
-            # Some neural network layers behave differently during training
-            # and inference, for example Dropout and BatchNormalization layers.
-            # For example during training, dropout will randomly drop out units
-            # and correspondingly scale up activations of the remaining units.
-            # During inference, it does nothing (since you usually don't want the
-            # randomness of dropping out units here). The training argument lets the
-            # layer know which of the two "paths" it should take. If you set this
-            # incorrectly, your network might not behave as expected.
-            target_actions = self.target_actor(next_state_batch, training=True)
-            q_values = self.target_critic([next_state_batch, target_actions], training=True)
-            # bellman equation
-            y = reward_batch + (self.gamma * q_values * (ones - done_batch))
+    # get current action from current state
+    def act(self, state):
+        tf_state = tf.expand_dims(state, 0)
+        # exploration vs exploitation
+        if np.random.uniform(0, 1) < self.epsilon:
+            action = np.random.uniform(self.action_lower_bound,
+                                       self.action_upper_bound,
+                                       self.action_space) + self.noise()
+        else:
+            action = self.actor(tf_state)[0].numpy()
 
-            critic_value = self.critic([state_batch, action_batch], training=True)
-            critic_loss = tf.math.reduce_mean(tf.math.square(y - critic_value))
+        # clip to range
+        action = np.clip(action, self.action_lower_bound, self.action_upper_bound)
+        return action
+
+    @tf.function
+    def train(self, s, a, r, ns, dn):
+        # first, train critic model
+        with tf.GradientTape() as tape:
+            y = r + self.gamma * (1 - dn) * self.target_critic([ns, self.target_actor(ns)])
+            critic_value = self.critic([s, a])
+            critic_loss = tf.math.reduce_mean(tf.math.abs(y - critic_value))
 
         critic_grad = tape.gradient(critic_loss, self.critic.trainable_variables)
         self.critic_optimizer.apply_gradients(
@@ -125,30 +129,30 @@ class Model:
 
         # second, train actor model
         with tf.GradientTape() as tape:
-            actions = self.actor(state_batch, training=True)
-            critic_value = self.critic([state_batch, actions], training=True)
-            # Used `-value` as we want to maximize the value given by the
-            # critic for our actions
-            actor_loss = -tf.math.reduce_mean(critic_value)
+            actor_loss = -tf.math.reduce_mean(self.critic([s, self.actor(s)]))
 
         actor_grad = tape.gradient(actor_loss, self.actor.trainable_variables)
         self.actor_optimizer.apply_gradients(
             zip(actor_grad, self.actor.trainable_variables))
 
+    def learn(self, entry):
+        s, a, r, ns, dn = zip(*entry)
+        self.train(tf.convert_to_tensor(s, dtype=tf.float32),
+                   tf.convert_to_tensor(a, dtype=tf.float32),
+                   tf.convert_to_tensor(r, dtype=tf.float32),
+                   tf.convert_to_tensor(ns, dtype=tf.float32),
+                   tf.convert_to_tensor(dn, dtype=tf.float32))
+        # update target weights
+        self.update_target_weights(self.target_actor, self.actor)
+        self.update_target_weights(self.target_critic, self.critic)
+
     # Instead of updating the target network periodically and all at once,
     # we will be updating it frequently, but slowly.
-    def update_target_weights(self):
-        # actor -> target_actor
-        source_w, target_w = self.actor.get_weights(), self.target_actor.get_weights()
-        for i in range(len(source_w)):
-            target_w[i] = self.tau * source_w[i] + (1 - self.tau) * target_w[i]
-        self.target_actor.set_weights(target_w)
-
-        # critic -> target_critic
-        source_w, target_w = self.critic.get_weights(), self.target_critic.get_weights()
-        for i in range(len(source_w)):
-            target_w[i] = self.tau * source_w[i] + (1 - self.tau) * target_w[i]
-        self.target_critic.set_weights(target_w)
+    def update_target_weights(self, model_target, model_ref):
+        model_target.set_weights([self.tau * ref_weight + (1 - self.tau) * target_weight
+                                  for (target_weight, ref_weight) in
+                                  list(zip(model_target.get_weights(),
+                                           model_ref.get_weights()))])
 
     # load and save model weights, NOTE: we are not saving model
     # architecture here
