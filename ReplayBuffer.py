@@ -2,7 +2,7 @@ import numpy as np
 from collections import deque
 
 class ReplayBuffer:
-    def __init__(self, capacity, batch_size, state_space, action_space):
+    def __init__(self, capacity, batch_size):
         self.buffer_capacity = capacity
         # sampling batch size
         self.batch_size = batch_size
